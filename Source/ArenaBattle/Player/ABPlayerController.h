@@ -22,6 +22,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	
+	virtual void PostNetInit() override;
+	
+	virtual void PostInitializeComponents() override;
+	
 // HUD Section
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = HUD)

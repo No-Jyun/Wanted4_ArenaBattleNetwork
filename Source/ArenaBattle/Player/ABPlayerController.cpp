@@ -26,3 +26,37 @@ void AABPlayerController::BeginPlay()
 	FInputModeGameOnly GameOnlyInputMode;
 	SetInputMode(GameOnlyInputMode);
 }
+
+void AABPlayerController::PostNetInit()
+{
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+
+	Super::PostNetInit();
+	
+	// 서버 정보 출력
+	UNetDriver* NetDriver = GetNetDriver();
+	if (NetDriver)
+	{
+		// 서버 연결 정보 출력
+		if (NetDriver->ServerConnection)
+		{
+			AB_LOG(LogABNetwork, Log, TEXT("Server Connection : %s"), *NetDriver->ServerConnection->GetName());
+		}
+	}
+	else
+	{
+		// 서버 연결 없음
+		AB_LOG(LogABNetwork, Log, TEXT("No NetDriver"));
+	}
+	
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
+}
+
+void AABPlayerController::PostInitializeComponents()
+{
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+	
+	Super::PostInitializeComponents();
+	
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
+}
