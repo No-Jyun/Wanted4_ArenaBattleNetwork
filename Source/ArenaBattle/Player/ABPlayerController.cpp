@@ -29,7 +29,7 @@ void AABPlayerController::BeginPlay()
 
 void AABPlayerController::PostNetInit()
 {
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+	AB_LOG(LogABNetwork, Log, TEXT("%s %s"), TEXT("Begin"), *GetName());
 
 	Super::PostNetInit();
 	
