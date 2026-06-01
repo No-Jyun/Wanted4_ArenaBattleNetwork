@@ -26,6 +26,8 @@ protected:
 	
 	virtual void PostInitializeComponents() override;
 	
+	virtual void OnPossess(APawn* InPawn) override;
+	
 // HUD Section
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = HUD)
