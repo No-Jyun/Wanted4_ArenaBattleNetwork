@@ -51,6 +51,12 @@ protected:
 	//// 값 변경에 사용할 변수
 	//float BigDataElement = 0.0f;
 	
+	UPROPERTY(ReplicatedUsing = OnRep_ServerLightColor)
+	FLinearColor ServerLightColor;
+	
+	UFUNCTION()
+	void OnRep_ServerLightColor();
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
