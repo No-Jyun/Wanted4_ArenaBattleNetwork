@@ -21,7 +21,11 @@ protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
+	// 액터 채널이 열릴 때 호출되는 함수
 	virtual void OnActorChannelOpen(class FInBunch& InBunch, class UNetConnection* Connection) override;
+	
+	// 연관성 검사 함수
+	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
 	
 	// 속성이 변경됐을 때 호출될 함수 지정
 	UFUNCTION()
@@ -33,6 +37,12 @@ protected:
 	
 	// 회전 속도 변수
 	float RotataionRate = 30.0f;
+	
+	// 서버로부터 패킷을 받은 후에 경과한 시간을 계산하기 위한 변수
+	float ClientTimeSinceUpdate = 0.0f;
+	
+	// 서버로부터 데이터를 받고 그 다음 데이터를 받았을 때까지 걸린 시간을 기록할 변수
+	float ClientTimeBetweenLastUpdate = 0.0f;
 	
 public:	
 	// Called every frame
