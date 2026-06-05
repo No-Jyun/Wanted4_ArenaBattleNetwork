@@ -85,6 +85,8 @@ AABCharacterPlayer::AABCharacterPlayer()
 
 void AABCharacterPlayer::BeginPlay()
 {
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+
 	Super::BeginPlay();
 
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
