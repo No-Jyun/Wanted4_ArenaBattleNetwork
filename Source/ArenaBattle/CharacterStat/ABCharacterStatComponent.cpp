@@ -16,7 +16,7 @@ UABCharacterStatComponent::UABCharacterStatComponent()
 	bWantsInitializeComponent = true;
 	
 	// 리플리케이션 활성화
-	SetIsReplicated(true);
+	SetIsReplicatedByDefault(true);
 }
 
 void UABCharacterStatComponent::InitializeComponent()
