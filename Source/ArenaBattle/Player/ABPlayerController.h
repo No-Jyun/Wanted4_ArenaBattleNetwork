@@ -20,13 +20,10 @@ public:
 	AABPlayerController();
 	
 protected:
-	virtual void BeginPlay() override;
-	
-	virtual void PostNetInit() override;
-	
 	virtual void PostInitializeComponents() override;
-	
-	virtual void OnPossess(APawn* InPawn) override;
+	virtual void PostNetInit() override;
+	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* aPawn) override;
 	
 // HUD Section
 protected:

@@ -3,7 +3,7 @@
 #include "ArenaBattle.h"
 #include "Modules/ModuleManager.h"
 
-// ë¡œê·¸ ì¹´í…Œê³ ë¦¬ ì •ì˜
+// ·Î±× Ä«Å×°í¸® Á¤ÀÇ.
 DEFINE_LOG_CATEGORY(LogABNetwork);
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, ArenaBattle, "ArenaBattle" );

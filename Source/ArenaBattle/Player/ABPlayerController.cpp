@@ -5,6 +5,7 @@
 #include "UI/ABHUDWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "ABSaveGame.h"
+
 #include "ArenaBattle.h"
 
 DEFINE_LOG_CATEGORY(LogABPlayerController);
@@ -18,13 +19,13 @@ AABPlayerController::AABPlayerController()
 	}
 }
 
-void AABPlayerController::BeginPlay()
+void AABPlayerController::PostInitializeComponents()
 {
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-	Super::BeginPlay();
+
+	Super::PostInitializeComponents();
+
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
-	FInputModeGameOnly GameOnlyInputMode;
-	SetInputMode(GameOnlyInputMode);
 }
 
 void AABPlayerController::PostNetInit()
@@ -32,40 +33,45 @@ void AABPlayerController::PostNetInit()
 	AB_LOG(LogABNetwork, Log, TEXT("%s %s"), TEXT("Begin"), *GetName());
 
 	Super::PostNetInit();
-	
-	// ÏÑúÎ≤Ñ Ï†ïÎ≥¥ Ï∂úÎ†•
+
+	// º≠πˆ ¡§∫∏ √‚∑¬.
 	UNetDriver* NetDriver = GetNetDriver();
 	if (NetDriver)
 	{
-		// ÏÑúÎ≤Ñ Ïó∞Í≤∞ Ï†ïÎ≥¥ Ï∂úÎ†•
+		// º≠πˆ ø¨∞· ¡§∫∏ √‚∑¬.
 		if (NetDriver->ServerConnection)
 		{
-			AB_LOG(LogABNetwork, Log, TEXT("Server Connection : %s"), *NetDriver->ServerConnection->GetName());
+			AB_LOG(LogABNetwork, Log, TEXT("Server Connection: %s"),
+				*NetDriver->ServerConnection->GetName()
+			);
 		}
 	}
 	else
 	{
-		// ÏÑúÎ≤Ñ Ïó∞Í≤∞ ÏóÜÏùå
-		AB_LOG(LogABNetwork, Log, TEXT("No NetDriver"));
+		// º≠πˆ ø¨∞· æ¯¿Ω.
+		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("No NetDriver"));
 	}
-	
+
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
 }
 
-void AABPlayerController::PostInitializeComponents()
+void AABPlayerController::BeginPlay()
 {
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-	
-	Super::PostInitializeComponents();
-	
+
+	Super::BeginPlay();
+
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
+
+	FInputModeGameOnly GameOnlyInputMode;
+	SetInputMode(GameOnlyInputMode);
 }
 
-void AABPlayerController::OnPossess(APawn* InPawn)
+void AABPlayerController::OnPossess(APawn* aPawn)
 {
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-	
-	Super::OnPossess(InPawn);
-	
+
+	Super::OnPossess(aPawn);
+
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
 }
