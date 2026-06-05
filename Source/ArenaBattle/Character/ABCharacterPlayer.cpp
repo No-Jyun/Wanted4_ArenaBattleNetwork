@@ -404,6 +404,37 @@ void AABCharacterPlayer::AttackHitCheck()
 
 void AABCharacterPlayer::ServerRPCNotifyHit_Implementation(const FHitResult& HitResult, float HitCheckTime)
 {
+	// 충돌 정보로부터 액터 가져오기
+	AActor* HitActor = HitResult.GetActor();
+	if (IsValid(HitActor))
+	{
+		// 클라이언트로부터 받은 정보를 기반으로 처리는 하되, 검증은 진행
+		// 거리 기반으로 검증
+		
+		// 맞은 위치
+		const FVector HitLocation = HitResult.Location;
+		
+		// 맞은 액터의 범위 가져오기
+		// 캐릭터를 감싸는 박스 정보 가져오기
+		// 캐릭터의 위치를 사용해도 됨
+		const FBox HitBox = HitActor->GetComponentsBoundingBox();
+		
+		// 바운딩 박스의 중심 위치
+		const FVector ActorBoxCenter = HitBox.GetCenter();
+		
+		// 거리 확인
+		if (FVector::DistSquared(HitLocation, ActorBoxCenter) 
+			<= AcceptCheckDistance * AcceptCheckDistance)
+		{
+			// ㅇㅈ
+			
+		}
+		else
+		{
+			// ㄴㅇㅈ
+			AB_LOG(LogABNetwork, Warning, TEXT("%s"), TEXT("Hit Rejected"));
+		}
+	}
 }
 
 bool AABCharacterPlayer::ServerRPCNotifyHit_Validate(const FHitResult& HitResult, float HitCheckTime)
