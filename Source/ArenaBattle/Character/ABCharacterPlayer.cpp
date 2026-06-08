@@ -13,6 +13,7 @@
 #include "Interface/ABGameInterface.h"
 
 #include "ArenaBattle.h"
+#include "EngineUtils.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -382,7 +383,7 @@ void AABCharacterPlayer::AttackHitCheck()
 			// 디버그 드로우로 충돌 정보 보여주기
 			FColor DebugColor = HitDetected ? FColor::Green : FColor::Red;
 			DrawDebugAttackRange(DebugColor, Start, End, Forward);
-			
+
 			// 서버에서는 추가 판정을 하지 않고 대미지 처리
 			if (HitDetected)
 			{
@@ -413,16 +414,16 @@ void AABCharacterPlayer::AttackHitCheck()
 void AABCharacterPlayer::AttackHitConfirm(AActor* HitActor)
 {
 	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-	
+
 	// 서버에서만 실행해야함
 	if (HasAuthority())
 	{
 		// 공격 대미지를 스탯 컴포넌트에 가져오기
 		const float AttackDamage = Stat->GetTotalStat().Attack;
-		
+
 		// 전달할 대미지 이벤트 변수
 		FDamageEvent DamageEvent;
-		
+
 		// 맞은 액터에 대미지 처리 진행
 		HitActor->TakeDamage(
 			AttackDamage,
@@ -442,21 +443,30 @@ void AABCharacterPlayer::DrawDebugAttackRange(
 #if ENABLE_DRAW_DEBUG
 	const float AttackRange = Stat->GetTotalStat().AttackRange;
 	const float AttackRadius = Stat->GetAttackRadius();
-	
+
 	FVector CapsuleOrigin = TraceStart + (TraceEnd - TraceStart) * 0.5f;
-			float CapsuleHalfHeight = AttackRange * 0.5f;
-	
-			DrawDebugCapsule(
-				GetWorld(),
-				CapsuleOrigin,
-				CapsuleHalfHeight,
-				AttackRadius,
-				FRotationMatrix::MakeFromZ(GetActorForwardVector()).ToQuat(),
-				DrawColor,
-				false,
-				5.0f
-			);
+	float CapsuleHalfHeight = AttackRange * 0.5f;
+
+	DrawDebugCapsule(
+		GetWorld(),
+		CapsuleOrigin,
+		CapsuleHalfHeight,
+		AttackRadius,
+		FRotationMatrix::MakeFromZ(GetActorForwardVector()).ToQuat(),
+		DrawColor,
+		false,
+		5.0f
+	);
 #endif
+}
+
+void AABCharacterPlayer::ClientRPCPlayAnimation_Implementation(AABCharacterPlayer* CharacterToPlay)
+{
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"))
+	if (CharacterToPlay)
+	{
+		CharacterToPlay->PlayAttackAnimation();
+	}
 }
 
 void AABCharacterPlayer::ServerRPCNotifyHit_Implementation(const FHitResult& HitResult, float HitCheckTime)
@@ -504,7 +514,7 @@ void AABCharacterPlayer::ServerRPCNotifyHit_Implementation(const FHitResult& Hit
 			false,
 			5.0f
 		);
-		
+
 		// 맞은 위치를 점으로 표시
 		DrawDebugPoint(
 			GetWorld(),
@@ -521,7 +531,7 @@ void AABCharacterPlayer::ServerRPCNotifyHit_Implementation(const FHitResult& Hit
 bool AABCharacterPlayer::ServerRPCNotifyHit_Validate(const FHitResult& HitResult, float HitCheckTime)
 {
 	// 공격 타이밍으로 검증
-	
+
 	// 첫 공격인 경우에는 수락
 	if (LastAttackStartTime == 0.0f)
 	{
@@ -533,21 +543,28 @@ bool AABCharacterPlayer::ServerRPCNotifyHit_Validate(const FHitResult& HitResult
 }
 
 void AABCharacterPlayer::ServerRPCNotifyMiss_Implementation(
-	FVector TraceStart,
-	FVector TraceEnd,
-	FVector TraceDir,
+	FVector_NetQuantize TraceStart,
+	FVector_NetQuantize TraceEnd,
+	FVector_NetQuantize TraceDir,
 	float HitCheckTime)
 {
+	// 충돌 발생이 안된 경우에 디버그 드로우
+	DrawDebugAttackRange(
+		FColor::Red,
+		TraceStart,
+		TraceEnd,
+		TraceDir
+	);
 }
 
 bool AABCharacterPlayer::ServerRPCNotifyMiss_Validate(
-	FVector TraceStart,
-	FVector TraceEnd,
-	FVector TraceDir,
+	FVector_NetQuantize TraceStart,
+	FVector_NetQuantize TraceEnd,
+	FVector_NetQuantize TraceDir,
 	float HitCheckTime)
 {
 	// 공격 타이밍으로 검증
-	
+
 	// 첫 공격인 경우에는 수락
 	if (LastAttackStartTime == 0.0f)
 	{
@@ -631,7 +648,31 @@ void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 	PlayAttackAnimation();
 
 	// 멀티캐스트 RPC 호출
-	MulticastRPCAttack();
+	//MulticastRPCAttack();
+
+	// 필요한 클라이언트에만 ClientRPC 호출
+	for (APlayerController* PlayerController : TActorRange<APlayerController>(GetWorld()))
+	{
+		// 2개 필터링
+		// 필터링 대상 #1 : 요청한 클라이언트
+		// 필터링 대상 #2 : 서버에 있는 PlayerController
+
+		// #1 : 요청한 클라이언트의 PlayerController 필터링
+		if (PlayerController && PlayerController != GetController())
+		{
+			// #2 : 추가로 필터링 서버에서 제어하는 PlayerController 필터링
+			if (!PlayerController->IsLocalController())
+			{
+				// 해당 클라이언트한테 애니메이션 재생 전달
+				AABCharacterPlayer* OtherPlayer = Cast<AABCharacterPlayer>(PlayerController->GetPawn());
+				if (OtherPlayer)
+				{
+					// ClientRPC 를 통해서 아래 로직을 수행 요청
+					OtherPlayer->ClientRPCPlayAnimation(this);
+				}
+			}
+		}
+	}
 }
 
 bool AABCharacterPlayer::ServerRPCAttack_Validate(float AttackStartTime)
