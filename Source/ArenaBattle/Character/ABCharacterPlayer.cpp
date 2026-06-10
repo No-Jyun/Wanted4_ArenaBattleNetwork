@@ -726,4 +726,12 @@ void AABCharacterPlayer::SetupHUDWidget(UABHUDWidget* InHUDWidget)
 void AABCharacterPlayer::Teleport()
 {
 	AB_LOG(LogABTeleport, Log, TEXT("%s"), TEXT("Begin"));
+
+	// 캐릭터 무브먼트 컴포넌트에 입력을 전달
+	// 다운캐스팅 & 위험한 이유 (메모리 관점에서)
+	UABCharacterMovementComponent* ABMovement = Cast<UABCharacterMovementComponent>(GetCharacterMovement());
+	if (ABMovement)
+	{
+		ABMovement->SetTeleportCommand();
+	}
 }

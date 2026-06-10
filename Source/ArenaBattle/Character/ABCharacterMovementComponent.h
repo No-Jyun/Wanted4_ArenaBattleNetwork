@@ -23,6 +23,9 @@ public:
 protected:
 	// 실제로 텔레포트를 수행하는 함수
 	virtual void ABTeleport();
+
+	// PerformMovement 끝에 호출되는 함수
+	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 	
 public:
 	// 텔레포트 상태를 확인할 부울 변수
