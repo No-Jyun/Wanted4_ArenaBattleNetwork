@@ -8,15 +8,16 @@
 #include "ABCharacterStatComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHpZeroDelegate);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnHpChangedDelegate, float /*CurrentHp*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStatChangedDelegate, const FABCharacterStat& /*BaseStat*/, const FABCharacterStat& /*ModifierStat*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHpChangedDelegate, float /*CurrentHp*/, float /*MaxHp*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStatChangedDelegate, const FABCharacterStat& /*BaseStat*/,
+                                     const FABCharacterStat& /*ModifierStat*/);
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class ARENABATTLE_API UABCharacterStatComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UABCharacterStatComponent();
 
@@ -26,16 +27,22 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void ReadyForReplication() override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// MaxHp 를 설정하는데 사용할 함수
+	void SetNewMaxHp(const FABCharacterStat& InBaseStat, const FABCharacterStat& InModifierStat);
 	
 	UFUNCTION()
 	void OnRep_CurrentHp();
-	
+
+	UFUNCTION()
+	void OnRep_MaxHp();
+
 	UFUNCTION()
 	void OnRep_BaseStat();
-	
+
 	UFUNCTION()
 	void OnRep_ModifierStat();
-	
+
 public:
 	FOnHpZeroDelegate OnHpZero;
 	FOnHpChangedDelegate OnHpChanged;
@@ -43,15 +50,35 @@ public:
 
 	void SetLevelStat(int32 InNewLevel);
 	FORCEINLINE float GetCurrentLevel() const { return CurrentLevel; }
-	FORCEINLINE void AddBaseStat(const FABCharacterStat& InAddBaseStat) { BaseStat = BaseStat + InAddBaseStat; OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat()); }
-	FORCEINLINE void SetBaseStat(const FABCharacterStat& InBaseStat) { BaseStat = InBaseStat; OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat()); }
-	FORCEINLINE void SetModifierStat(const FABCharacterStat& InModifierStat) { ModifierStat = InModifierStat; OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat()); }
+	FORCEINLINE void AddBaseStat(const FABCharacterStat& InAddBaseStat)
+	{
+		BaseStat = BaseStat + InAddBaseStat;
+		OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat());
+	}
+
+	FORCEINLINE void SetBaseStat(const FABCharacterStat& InBaseStat)
+	{
+		BaseStat = InBaseStat;
+		OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat());
+	}
+
+	FORCEINLINE void SetModifierStat(const FABCharacterStat& InModifierStat)
+	{
+		ModifierStat = InModifierStat;
+		OnStatChanged.Broadcast(GetBaseStat(), GetModifierStat());
+	}
 
 	FORCEINLINE const FABCharacterStat& GetBaseStat() const { return BaseStat; }
 	FORCEINLINE const FABCharacterStat& GetModifierStat() const { return ModifierStat; }
 	FORCEINLINE FABCharacterStat GetTotalStat() const { return BaseStat + ModifierStat; }
 	FORCEINLINE float GetCurrentHp() const { return CurrentHp; }
-	FORCEINLINE void HealHp(float InHealAmount) { CurrentHp = FMath::Clamp(CurrentHp + InHealAmount, 0, GetTotalStat().MaxHp); OnHpChanged.Broadcast(CurrentHp); }
+	FORCEINLINE float GetMaxHp() const { return MaxHp; }
+	FORCEINLINE void HealHp(float InHealAmount)
+	{
+		CurrentHp = FMath::Clamp(CurrentHp + InHealAmount, 0, MaxHp);
+		OnHpChanged.Broadcast(CurrentHp, MaxHp);
+	}
+
 	FORCEINLINE float GetAttackRadius() const { return AttackRadius; }
 	float ApplyDamage(float InDamage);
 
@@ -61,15 +88,20 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentHp, Transient, VisibleInstanceOnly, Category = Stat)
 	float CurrentHp;
 
+	UPROPERTY(ReplicatedUsing = OnRep_MaxHp, Transient, VisibleInstanceOnly, Category = Stat)
+	float MaxHp;
+
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = Stat)
 	float CurrentLevel;
 
 	UPROPERTY(VisibleInstanceOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
 	float AttackRadius;
 
-	UPROPERTY(Transient, ReplicatedUsing=OnRep_BaseStat, VisibleInstanceOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_BaseStat, VisibleInstanceOnly, Category = Stat,
+		Meta = (AllowPrivateAccess = "true"))
 	FABCharacterStat BaseStat;
 
-	UPROPERTY(Transient, ReplicatedUsing=OnRep_ModifierStat, VisibleInstanceOnly, Category = Stat, Meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_ModifierStat, VisibleInstanceOnly, Category = Stat,
+		Meta = (AllowPrivateAccess = "true"))
 	FABCharacterStat ModifierStat;
 };
