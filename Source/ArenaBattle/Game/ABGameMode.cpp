@@ -14,13 +14,15 @@
 
 AABGameMode::AABGameMode()
 {
-	static ConstructorHelpers::FClassFinder<APawn> DefaultPawnClassRef(TEXT("/Script/Engine.Blueprint'/Game/ArenaBattle/Blueprint/BP_ABCharacterPlayer.BP_ABCharacterPlayer_C'"));
+	static ConstructorHelpers::FClassFinder<APawn> DefaultPawnClassRef(
+		TEXT("/Script/Engine.Blueprint'/Game/ArenaBattle/Blueprint/BP_ABCharacterPlayer.BP_ABCharacterPlayer_C'"));
 	if (DefaultPawnClassRef.Class)
 	{
 		DefaultPawnClass = DefaultPawnClassRef.Class;
 	}
 
-	static ConstructorHelpers::FClassFinder<APlayerController> PlayerControllerClassRef(TEXT("/Script/ArenaBattle.ABPlayerController"));
+	static ConstructorHelpers::FClassFinder<APlayerController> PlayerControllerClassRef(
+		TEXT("/Script/ArenaBattle.ABPlayerController"));
 	if (PlayerControllerClassRef.Class)
 	{
 		PlayerControllerClass = PlayerControllerClassRef.Class;
@@ -28,7 +30,7 @@ AABGameMode::AABGameMode()
 
 	// 게임 스테이트 클래스 설정.
 	GameStateClass = AABGameState::StaticClass();
-	
+
 	// 플레이어 스테이트 클래스 설정
 	PlayerStateClass = AABPlayerState::StaticClass();
 }
@@ -45,20 +47,38 @@ FTransform AABGameMode::GetRandomStartTransform() const
 	{
 		return FTransform(FVector(0.0f, 0.0f, 230.0f));
 	}
-	
+
 	// 배열 정보가 설정되었다면, 랜덤으로 위치 선택 후 반환
 	int32 RandIndex = FMath::RandRange(0, PlayerStartArray.Num() - 1);
-	return PlayerStartArray[RandIndex]->GetActorTransform();	
+	return PlayerStartArray[RandIndex]->GetActorTransform();
 }
 
 void AABGameMode::OnPlayerKilled(AController* Killer, AController* KilledPlayer, APawn* KilledPawn)
 {
+	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
+
+	// 점수 처리 진행
+	// 플레이어 스테이트가 기본 제공하는 점수 사용
+	APlayerState* KillerPlayerState = Killer->PlayerState;
+	if (KillerPlayerState)
+	{
+		// Kill 을 올린 플레이어에 1점 추가
+		KillerPlayerState->SetScore(KillerPlayerState->GetScore() + 1);
+		
+		// Kill 수가 2보다 큰 플레이어가 있으면 게임 종료
+		if (KillerPlayerState->GetScore() > 2)
+		{
+			// 경기 종료 처리
+			// 5초를 더 대기 후 ServerTravel
+			FinishMatch();
+		}
+	}
 }
 
 void AABGameMode::StartPlay()
 {
 	Super::StartPlay();
-	
+
 	// 월드에 있는 플레이어 스타트 액터를 배열에 저장
 	for (APlayerStart* PlayerStart : TActorRange<APlayerStart>(GetWorld()))
 	{
@@ -70,7 +90,7 @@ void AABGameMode::StartPlay()
 void AABGameMode::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	
+
 	GetWorldTimerManager().SetTimer(
 		GameTimerHandle,
 		this,
@@ -88,15 +108,15 @@ void AABGameMode::DefaultGameTimer()
 	{
 		// 게임의 남은 시간 1초 감소 처리 (카운트 다운)
 		ABGameState->RemainingTime -= 1;
-		
+
 		// 남은 시간 출력
 		AB_LOG(LogABNetwork, Log, TEXT("Remaining Time : %d"), ABGameState->RemainingTime);
-		
+
 		// 시간이 모두 경과했는지 확인
 		if (ABGameState->RemainingTime <= 0)
 		{
 			// 매치 상태에 따라 처리
-			
+
 			// 경기 시간이 모두 지났는데 경기가 진행 중이면,
 			// 경기 종료 처리
 			if (GetMatchState() == MatchState::InProgress)
@@ -121,20 +141,19 @@ void AABGameMode::DefaultGameTimer()
 void AABGameMode::FinishMatch()
 {
 	// 이 함수는 경기를 종료시킬 때 호출
-	
+
 	AABGameState* const ABGameState = Cast<AABGameState>(GameState);
-	
+
 	// 경기 상태 확인
 	// 경기가 진행 중이라면 경기 종료 처리
 	if (ABGameState && IsMatchInProgress())
 	{
 		// 게임 모드의 엔드 매치 호출
 		EndMatch();
-		
+
 		// 경기 종료 후 잠깐 대기를 위해 타이머 시간 재설정
 		ABGameState->RemainingTime = ABGameState->ShowResultWaitingTime;
 	}
-	
 }
 
 //void AABGameMode::PreLogin(
