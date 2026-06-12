@@ -21,6 +21,9 @@ public:
 	// Sets default values for this component's properties
 	UABCharacterStatComponent();
 
+	// 스탯 초기화 함수
+	void ResetStat();
+	
 protected:
 	virtual void InitializeComponent() override;
 

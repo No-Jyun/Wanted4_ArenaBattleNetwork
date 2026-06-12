@@ -19,16 +19,27 @@ UABCharacterStatComponent::UABCharacterStatComponent()
 	SetIsReplicatedByDefault(true);
 }
 
+void UABCharacterStatComponent::ResetStat()
+{
+	// 캐릭터의 현재 레벨에 해당하는 데이터 설정
+	SetLevelStat(CurrentLevel);
+	
+	// 스탯 초기화
+	MaxHp = BaseStat.MaxHp;
+	SetHp(MaxHp);
+}
+
 void UABCharacterStatComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	SetLevelStat(CurrentLevel);
-	
-	// MaxHp 설정
-	MaxHp = BaseStat.MaxHp;
-	
-	SetHp(MaxHp);
+	//SetLevelStat(CurrentLevel);
+	//
+	//// MaxHp 설정
+	//MaxHp = BaseStat.MaxHp;
+	//
+	//SetHp(MaxHp);
+	ResetStat();	
 	
 	// 스탯이 변경되면 발행되는 델리게이트에 함수 등록
 	OnStatChanged.AddUObject(this, &UABCharacterStatComponent::SetNewMaxHp);

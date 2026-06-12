@@ -16,6 +16,7 @@
 #include "ArenaBattle.h"
 #include "EngineUtils.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -78,7 +79,7 @@ AABCharacterPlayer::AABCharacterPlayer(const FObjectInitializer& ObjectInitializ
 	{
 		AttackAction = InputActionAttackRef.Object;
 	}
-	
+
 	static ConstructorHelpers::FObjectFinder<UInputAction> InputActionTeleportRef(
 		TEXT("/Script/EnhancedInput.InputAction'/Game/ArenaBattle/Input/Actions/IA_Teleport.IA_Teleport'"));
 	if (nullptr != InputActionTeleportRef.Object)
@@ -114,11 +115,19 @@ void AABCharacterPlayer::SetDead()
 {
 	Super::SetDead();
 
-	APlayerController* PlayerController = Cast<APlayerController>(GetController());
-	if (PlayerController)
-	{
-		DisableInput(PlayerController);
-	}
+	GetWorld()->GetTimerManager().SetTimer(
+		DeadTimerHandle,
+		this,
+		&AABCharacterPlayer::ResetPlayer,
+		5.0f,
+		false
+	);
+	
+	//APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	//if (PlayerController)
+	//{
+	//	DisableInput(PlayerController);
+	//}
 }
 
 void AABCharacterPlayer::PossessedBy(AController* NewController)
@@ -242,7 +251,7 @@ void AABCharacterPlayer::ShoulderMove(const FInputActionValue& Value)
 	{
 		return;
 	}
-	
+
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	const FRotator Rotation = Controller->GetControlRotation();
@@ -270,7 +279,7 @@ void AABCharacterPlayer::QuaterMove(const FInputActionValue& Value)
 	{
 		return;
 	}
-	
+
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	float InputSizeSquared = MovementVector.SquaredLength();
@@ -308,20 +317,13 @@ void AABCharacterPlayer::Attack()
 			GetCharacterMovement()->SetMovementMode(MOVE_None);
 
 			// 타이머 설정 (공격 종료 처리)
-			FTimerHandle Handle;
+			//FTimerHandle Handle;
 			GetWorld()->GetTimerManager().SetTimer(
-				Handle,
-				FTimerDelegate::CreateLambda(
-					[this]()
-					{
-						// 공격 종료 처리
-						// 공격 끝나면 공격 가능하도록 설정
-						bCanAttack = true;
-
-						// 공격이 끝나면 다시 이동 가능하도록
-						GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-					}
-				), AttackTime, false
+				AttackTimerHandle,
+				this,
+				&AABCharacterPlayer::ResetAttack,
+				AttackTime,
+				false
 			);
 
 			// 애니메이션 재생
@@ -651,17 +653,13 @@ void AABCharacterPlayer::ServerRPCAttack_Implementation(float AttackStartTime)
 	// 공격 종료 시간을 계산할 때
 	// 애니메이션 재생시간에서 클라에서 서버까지 메시지가 전달되는데까지
 	// 걸린 시간을 고려해서 설정
-	FTimerHandle Handle;
+	//FTimerHandle Handle;
 	GetWorld()->GetTimerManager().SetTimer(
-		Handle,
-		FTimerDelegate::CreateLambda(
-			[this]()
-			{
-				// 공격 종료 처리
-				bCanAttack = true;
-				OnRep_CanAttack();
-			}
-		), AttackTime - AttackTimeDifference, false
+		AttackTimerHandle,
+		this,
+		&AABCharacterPlayer::ResetAttack,
+		AttackTime - AttackTimeDifference,
+		false
 	);
 
 	// 클라이언트가 공격을 시작한 시간을 저장 (기록)
@@ -708,7 +706,7 @@ bool AABCharacterPlayer::ServerRPCAttack_Validate(float AttackStartTime)
 	}
 
 	// 이전에 공격을 시작한 시간으로부터 충분한 시간이 지났는지 확인
-	return (AttackStartTime - LastAttackStartTime) > AttackTime;
+	return (AttackStartTime - LastAttackStartTime) > (AttackTime - 0.4f);
 }
 
 void AABCharacterPlayer::SetupHUDWidget(UABHUDWidget* InHUDWidget)
@@ -734,4 +732,69 @@ void AABCharacterPlayer::Teleport()
 	{
 		ABMovement->SetTeleportCommand();
 	}
+}
+
+void AABCharacterPlayer::ResetPlayer()
+{
+	// 애니메이션 정리
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		// 현재 재생 중일 수 있는 죽음 몽타주 중지
+		AnimInstance->StopAllMontages(0.0f);
+	}
+	
+	// 스탯 정리
+	Stat->SetLevelStat(1);
+	Stat->ResetStat();
+	
+	// 이동 모드 복구
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	
+	// 꺼두었던 콜리전 복구
+	SetActorEnableCollision(true);
+	
+	// HP 가시성(Visibility) 복구
+	HpBar->SetHiddenInGame(false);
+	
+	// 서버인 경우에는 플레이어 리스폰
+	if (HasAuthority())
+	{
+		IABGameInterface* ABGameMode = GetWorld()->GetAuthGameMode<IABGameInterface>();
+		if (ABGameMode)
+		{
+			FTransform NewTransform = ABGameMode->GetRandomStartTransform();
+			TeleportTo(NewTransform.GetLocation(), NewTransform.GetRotation().Rotator());
+		}
+	}
+}
+
+void AABCharacterPlayer::ResetAttack()
+{
+	// 공격 종료 처리
+	// 공격 끝나면 공격 가능하도록 설정
+	bCanAttack = true;
+
+	// 공격이 끝나면 다시 이동 가능하도록
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+}
+
+float AABCharacterPlayer::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	class AController* EventInstigator, AActor* DamageCauser)
+{
+	// 상위 로직 처리
+	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	// HP를 모두 소모했으면 (죽었으면) 게임 모드에 알리기
+	if (Stat->GetCurrentHp() <= KINDA_SMALL_NUMBER)
+	{
+		// 게임 모드 (인터페이스) 에 접근해서 죽었음을 알림
+		IABGameInterface* ABGameMode = GetWorld()->GetAuthGameMode<IABGameInterface>();
+		if (ABGameMode)
+		{
+			ABGameMode->OnPlayerKilled(EventInstigator, GetController(), this);
+		}
+	}	
+	
+	return ActualDamage;
 }
