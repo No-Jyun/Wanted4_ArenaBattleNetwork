@@ -17,9 +17,11 @@
 #include "EngineUtils.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Engine/AssetManager.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "Physics/ABCollision.h"
 
@@ -122,7 +124,7 @@ void AABCharacterPlayer::SetDead()
 		5.0f,
 		false
 	);
-	
+
 	//APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	//if (PlayerController)
 	//{
@@ -132,37 +134,11 @@ void AABCharacterPlayer::SetDead()
 
 void AABCharacterPlayer::PossessedBy(AController* NewController)
 {
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("Begin"));
-
-	// PossessedBy 함수가 호출되기 전에 액터의 소유 확인.
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor)
-	{
-		// 소유 정보가 있다면, 소유자의 이름 출력.
-		AB_LOG(LogABNetwork, Log, TEXT("Onwer: %s"),
-		       *OwnerActor->GetName());
-	}
-	else
-	{
-		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("No Owner"));
-	}
-
 	Super::PossessedBy(NewController);
 
-	// PossessedBy 함수가 호출된 후에 액터의 소유 확인.
-	OwnerActor = GetOwner();
-	if (OwnerActor)
-	{
-		// 소유 정보가 있다면, 소유자의 이름 출력.
-		AB_LOG(LogABNetwork, Log, TEXT("Onwer: %s"),
-		       *OwnerActor->GetName());
-	}
-	else
-	{
-		AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("No Owner"));
-	}
-
-	AB_LOG(LogABNetwork, Log, TEXT("%s"), TEXT("End"));
+	// 서버의 경우에는 로컬 플레이어를 PossessedBy를 통해서 진행
+	// PossessedBy 는 서버에서만 호출됨
+	UpdateMeshFromPlayerState();
 }
 
 void AABCharacterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -743,20 +719,20 @@ void AABCharacterPlayer::ResetPlayer()
 		// 현재 재생 중일 수 있는 죽음 몽타주 중지
 		AnimInstance->StopAllMontages(0.0f);
 	}
-	
+
 	// 스탯 정리
 	Stat->SetLevelStat(1);
 	Stat->ResetStat();
-	
+
 	// 이동 모드 복구
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-	
+
 	// 꺼두었던 콜리전 복구
 	SetActorEnableCollision(true);
-	
+
 	// HP 가시성(Visibility) 복구
 	HpBar->SetHiddenInGame(false);
-	
+
 	// 서버인 경우에는 플레이어 리스폰
 	if (HasAuthority())
 	{
@@ -780,11 +756,11 @@ void AABCharacterPlayer::ResetAttack()
 }
 
 float AABCharacterPlayer::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
-	class AController* EventInstigator, AActor* DamageCauser)
+                                     class AController* EventInstigator, AActor* DamageCauser)
 {
 	// 상위 로직 처리
 	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	
+
 	// HP를 모두 소모했으면 (죽었으면) 게임 모드에 알리기
 	if (Stat->GetCurrentHp() <= KINDA_SMALL_NUMBER)
 	{
@@ -794,7 +770,34 @@ float AABCharacterPlayer::TakeDamage(float DamageAmount, struct FDamageEvent con
 		{
 			ABGameMode->OnPlayerKilled(EventInstigator, GetController(), this);
 		}
-	}	
-	
+	}
+
 	return ActualDamage;
+}
+
+void AABCharacterPlayer::UpdateMeshFromPlayerState()
+{
+	// PlayerState 에서 관리하는 PlayerId 값을 사용해 메시 선택
+	int32 MeshIndex = FMath::Clamp<int32>(
+		GetPlayerState()->GetPlayerId() % PlayerMeshes.Num(),
+		0,
+		PlayerMeshes.Num() - 1
+	);
+	
+	// 메시 로드 요청 (비동기)
+	MeshHandle = UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
+		PlayerMeshes[MeshIndex],
+		FStreamableDelegate::CreateUObject(
+			this,
+			&AABCharacterBase::MeshLoadCompleted
+		)
+	);
+}
+
+void AABCharacterPlayer::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	// 플레이어 스테이트가 동기화되면, 캐릭터의 메시 설정
+	UpdateMeshFromPlayerState();
 }

@@ -345,3 +345,18 @@ void AABCharacterBase::ApplyStat(const FABCharacterStat& BaseStat, const FABChar
 	float MovementSpeed = (BaseStat + ModifierStat).MovementSpeed;
 	GetCharacterMovement()->MaxWalkSpeed = MovementSpeed;
 }
+
+void AABCharacterBase::MeshLoadCompleted()
+{
+	if (MeshHandle.IsValid())
+	{
+		USkeletalMesh* CharacterMesh = Cast<USkeletalMesh>(MeshHandle->GetLoadedAsset());
+		if (CharacterMesh)
+		{
+			GetMesh()->SetSkeletalMesh(CharacterMesh);
+			GetMesh()->SetHiddenInGame(false);
+		}
+	}
+
+	MeshHandle->ReleaseHandle();
+}

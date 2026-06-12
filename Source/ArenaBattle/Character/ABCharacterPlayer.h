@@ -11,7 +11,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(config = ArenaBattle)
 class ARENABATTLE_API AABCharacterPlayer : public AABCharacterBase, public IABCharacterHUDInterface
 {
 	GENERATED_BODY()
@@ -165,5 +165,14 @@ protected:
 	// 대미지 처리 함수 오버라이드
 	// 상위 로직에 추가 처리
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	// 플레이어 스테이트로부터 메시 정보를 업데이트하는 함수.
+	void UpdateMeshFromPlayerState();
 	
+	UPROPERTY(config)
+	TArray<FSoftObjectPath> PlayerMeshes;
+	
+	// 클라이언트에서 캐릭터 메시를 선택하기 위해 사용
+	// 플레이어 스테이트가 클라이언트에 
+	virtual void OnRep_PlayerState() override;
 };
