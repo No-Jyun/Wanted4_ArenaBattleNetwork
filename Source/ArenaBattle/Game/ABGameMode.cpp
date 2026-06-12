@@ -9,6 +9,7 @@
 #include "ABGameState.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "ABPlayerState.h"
 
 
 AABGameMode::AABGameMode()
@@ -27,6 +28,9 @@ AABGameMode::AABGameMode()
 
 	// 게임 스테이트 클래스 설정.
 	GameStateClass = AABGameState::StaticClass();
+	
+	// 플레이어 스테이트 클래스 설정
+	PlayerStateClass = AABPlayerState::StaticClass();
 }
 
 //void AABGameMode::OnPlayerDead()
@@ -61,6 +65,27 @@ void AABGameMode::StartPlay()
 		// 배열에 추가
 		PlayerStartArray.Add(PlayerStart);
 	}
+}
+
+void AABGameMode::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	
+	GetWorldTimerManager().SetTimer(
+		GameTimerHandle,
+		this,
+		&AABGameMode::DefaultGameTimer,
+		GetWorldSettings()->GetEffectiveTimeDilation(),
+		true
+	);
+}
+
+void AABGameMode::DefaultGameTimer()
+{
+}
+
+void AABGameMode::FinishMatch()
+{
 }
 
 //void AABGameMode::PreLogin(
